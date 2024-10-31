@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Formatter</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1d2b64, #f8cdda);
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            padding: 40px;
+            overflow: auto;
+        }
+        h1 {
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+        p {
+            color: #e0e0e0;
+            margin-bottom: 20px;
+        }
+        .input-container {
+            position: relative;
+            width: 80%;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            padding: 15px;
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        #formatButton {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        #formatButton:hover {
+            background-color: #d64545;
+            transform: translateY(-2px);
+        }
+        #formattedOutput {
+            width: 70%;
+            white-space: pre;
+            padding: 20px;
+            background-color: #2d2d2d;
+            color: #61dafb;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            overflow-x: auto;
+            max-height: 400px;
+            margin-top: 40px;
+            font-size: 12px;
+            position: relative;
+        }
+        .copy-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .copy-icon:hover {
+            background-color: #388e3c;
+            transform: translateY(-2px);
+        }
+        .error {
+            color: #ff4c4c;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        hr {
+            border: 0;
+            height: 2px;
+            background: #444;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>JSON Formatter Tool</h1>
+    <p>Paste your JSON string below and click "Format JSON" to see the formatted output.</p>
+    <div class="input-container">
+        <textarea id="jsonInput" placeholder="Paste your JSON here..."></textarea>
+        <button id="formatButton" onclick="formatJson()">Format JSON</button>
+    </div>
+    <div id="formattedOutput"></div>
+
+    <script>
+        function formatJson() {
+            const jsonInput = document.getElementById('jsonInput').value;
+            const formattedOutput = document.getElementById('formattedOutput');
+
+            try {
+                const jsonObjects = extractJson(jsonInput);
+                formattedOutput.innerHTML = jsonObjects.map(jsonObject => {
+                    const formattedJson = JSON.stringify(jsonObject, null, 4);
+                    return syntaxHighlight(formattedJson);
+                }).join('<hr/>');
+                addCopyButton(formattedOutput);
+            } catch (error) {
+                formattedOutput.innerHTML = `<span class="error">Invalid JSON: ${error.message}</span>`;
+            }
+        }
+
+        function extractJson(text) {
+            const jsonRegex = /\{(?:[^{}]|\{[^{}]*\})*\}/g;
+            const matches = text.match(jsonRegex);
+            if (matches && matches.length > 0) {
+                return matches.map(match => JSON.parse(match));
+            }
+            throw new Error("No valid JSON found");
+        }
+
+        function syntaxHighlight(json) {
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\u[a-zA-Z0-9]{4}|[^\u"\n])*"|\b(true|false|null)\b|\b\d+\.?\d*e?\d*\b)/g, function (match) {
+                let cls = 'number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'key';
+                    } else {
+                        cls = 'string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'null';
+                }
+                return `<span class="${cls}">${match}</span>`;
+            }).replace(/(:)/g, '<span class="colon">$1</span>');
+        }
+
+        function addCopyButton(container) {
+            const copyButton = document.createElement('button');
+            copyButton.innerHTML = '📋';
+            copyButton.className = 'copy-icon';
+            copyButton.onclick = function () {
+                copyToClipboard(container, copyButton);
+            };
+            container.appendChild(copyButton);
+        }
+
+        function copyToClipboard(container, copyButton) {
+            const range = document.createRange();
+            range.selectNode(container);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            try {
+                document.execCommand('copy');
+                copyButton.innerHTML = '✅';
+                copyButton.title = 'Copied successfully!';
+            } catch (err) {
+                copyButton.innerHTML = '❌';
+                copyButton.title = 'Failed to copy!';
+            }
+            window.getSelection().removeAllRanges();
+            setTimeout(() => {
+                copyButton.innerHTML = '📋';
+                copyButton.title = '';
+            }, 2000);
+        }
+    </script>
+    <style>
+        .string {
+            color: #ffb86c;
+        }
+        .number {
+            color: #8be9fd;
+        }
+        .boolean {
+            color: #50fa7b;
+        }
+        .null {
+            color: #f1fa8c;
+        }
+        .key {
+            color: #bd93f9;
+        }
+        .colon {
+            color: #ffffff;
+        }
+    </style>
+</body>
+</html>
